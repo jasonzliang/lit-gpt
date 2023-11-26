@@ -57,10 +57,10 @@ hparams = {k: v for k, v in locals().items() if isinstance(v, (int, float, str))
 
 
 def setup(
-    data_dir: Path = Path("data/alpaca_stablelmtuned3b"),
-    checkpoint_dir: Path = Path("checkpoints/stabilityai/stablelm-base-alpha-3b"),
-    out_dir: Path = Path("out/lora/alpaca_stablelmbase3b"),
-    precision: Optional[str] = None,
+    data_dir: Path = Path("data/codealpaca_codellama7b"),
+    checkpoint_dir: Path = Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
+    out_dir: Path = Path("out/lora/codealpaca_codellama7b"),
+    precision: Optional[str] = "bf16-true",
     quantize: Optional[Literal["bnb.nf4", "bnb.nf4-dq", "bnb.fp4", "bnb.fp4-dq", "bnb.int8-training"]] = None,
 ) -> None:
     precision = precision or get_default_supported_precision(training=True)
