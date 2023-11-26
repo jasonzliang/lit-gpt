@@ -15,10 +15,11 @@ sys.path.append(str(wd))
 
 from lit_gpt.tokenizer import Tokenizer
 
+# python scripts/prepare_alpaca.py --checkpoint_dir checkpoints/codellama/CodeLlama-7b-Python-hf --destination_path data/codealpaca_codellama7b --data_file_url https://raw.githubusercontent.com/sahil280114/codealpaca/master/data/code_alpaca_20k.json --data_file_name code_alpaca_20k.json
 
 def prepare(
-    destination_path: Path = Path("data/alpaca"),
-    checkpoint_dir: Path = Path("checkpoints/stabilityai/stablelm-base-alpha-3b"),
+    destination_path: Path = Path("data/alpaca_stablelmtbase3b"),
+    checkpoint_dir: Path = Path("checkpoints/stabilityai/stablelm-base-alpha-7b"),
     test_split_fraction: float = 0.03865,  # to get exactly 2000 test samples,
     seed: int = 42,
     mask_inputs: bool = False,  # as in alpaca-lora
