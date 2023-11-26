@@ -34,6 +34,7 @@ eval_max_new_tokens = 100
 log_interval = 1
 devices = 1
 
+# export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:32
 # Hyperparameters
 learning_rate = 3e-4
 batch_size = 128
@@ -84,7 +85,7 @@ def setup(
             activation_checkpointing_policy={Block},
             state_dict_type="full",
             limit_all_gathers=True,
-            cpu_offload=True,
+            cpu_offload=False,
         )
     else:
         strategy = "auto"
@@ -120,6 +121,8 @@ def main(fabric: L.Fabric, data_dir: Path, checkpoint_dir: Path, out_dir: Path) 
         to_mlp=lora_mlp,
         to_head=lora_head,
     )
+
+    torch.cuda.empty_cache()
     checkpoint_path = checkpoint_dir / "lit_model.pth"
     fabric.print(f"Loading model {str(checkpoint_path)!r} with {config.__dict__}")
     with fabric.init_module(empty_init=(devices > 1)):
