@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 from pathlib import Path
@@ -19,6 +20,7 @@ from lit_gpt.utils import check_valid_checkpoint_dir, get_default_supported_prec
 from scripts.prepare_alpaca import generate_prompt
 
 from evalplus.data.humaneval import get_human_eval_plus
+from evalplus.data.mbpp import get_mbpp_plus
 from evalplus.data import write_jsonl
 
 lora_r = 8
@@ -32,7 +34,7 @@ lora_mlp = False
 lora_head = False
 
 
-def generate_humaneval_results(
+def generate_eval_results(
     lora_path: Path = Path("out/lora/alpaca_codellama7b/lit_model_lora_finetuned.pth"),
     checkpoint_dir: Path = Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
     quantize: Optional[Literal["bnb.nf4", "bnb.nf4-dq", "bnb.fp4", "bnb.fp4-dq", "bnb.int8", "gptq.int4"]] = None,
@@ -42,6 +44,8 @@ def generate_humaneval_results(
     strategy: str = "auto",
     devices: int = 1,
     precision: Optional[str] = None,
+    humaneval: bool = True,
+    use_lora: bool = False
 ) -> None:
     """Generates a response based on a given instruction and an optional input.
     This script will only work with checkpoints from the instruction-tuned GPT-LoRA model.
@@ -92,18 +96,21 @@ def generate_humaneval_results(
 
     check_valid_checkpoint_dir(checkpoint_dir)
 
-    config = Config.from_json(
-        checkpoint_dir / "lit_config.json",
-        r=lora_r,
-        alpha=lora_alpha,
-        dropout=lora_dropout,
-        to_query=lora_query,
-        to_key=lora_key,
-        to_value=lora_value,
-        to_projection=lora_projection,
-        to_mlp=lora_mlp,
-        to_head=lora_head,
-    )
+    if use_lora:
+        config = Config.from_json(
+            checkpoint_dir / "lit_config.json",
+            r=lora_r,
+            alpha=lora_alpha,
+            dropout=lora_dropout,
+            to_query=lora_query,
+            to_key=lora_key,
+            to_value=lora_value,
+            to_projection=lora_projection,
+            to_mlp=lora_mlp,
+            to_head=lora_head,
+        )
+    else:
+        config = Config.from_json(checkpoint_dir / "lit_config.json")
 
     if quantize is not None and devices > 1:
         raise NotImplementedError
@@ -136,13 +143,15 @@ def generate_humaneval_results(
 
     t0 = time.perf_counter()
     checkpoint = lazy_load(checkpoint_path)
-    lora_checkpoint = lazy_load(lora_path)
-    checkpoint.update(lora_checkpoint.get("model", lora_checkpoint))
+    if use_lora:
+        lora_checkpoint = lazy_load(lora_path)
+        checkpoint.update(lora_checkpoint.get("model", lora_checkpoint))
     model.load_state_dict(checkpoint)
     fabric.print(f"Time to load the model weights: \
         {time.perf_counter() - t0:.02f} seconds.", file=sys.stderr)
 
-    merge_lora_weights(model)
+    if use_lora:
+        merge_lora_weights(model)
     model = fabric.setup(model)
 
     # samples = [
@@ -150,9 +159,14 @@ def generate_humaneval_results(
     #     for task_id, problem in get_[human_eval|mbpp]_plus().items()
     # ]
     # write_jsonl("samples.jsonl", samples)
-    fabric.print("Total prompts: %s" % len(get_human_eval_plus().items()))
+    if humaneval:
+        problems = get_human_eval_plus()
+    else:
+        problems = get_mbpp_plus()
+
+    fabric.print("Total prompts: %s" % len(problems.items()))
     results = []
-    for task_id, problem in get_human_eval_plus().items():
+    for task_id, problem in problems.items():
         sample = {"instruction": problem['prompt'],
             "input": problem['base_input']}
         prompt = generate_prompt(sample)
@@ -167,6 +181,9 @@ def generate_humaneval_results(
         y = generate(model, encoded, max_returned_tokens,
             temperature=temperature, top_k=top_k, eos_id=tokenizer.eos_id)
         t = time.perf_counter() - t0
+
+        for block in model.transformer.h:
+            block.attn.kv_cache.reset_parameters()
 
         output = tokenizer.decode(y)
         output = output.split("### Response:")[1].strip()
@@ -183,7 +200,12 @@ def generate_humaneval_results(
         fabric.print(f"Memory used: \
             {torch.cuda.max_memory_allocated() / 1e9:.02f} GB", file=sys.stderr)
 
-    write_jsonl("results.jsonl", results)
+    eval_name = "humaneval" if humaneval else "mbpp"
+    if not use_lora: eval_name += "_no_lora"
+    result_file = Path(os.path.join(os.path.dirname(str(lora_path)),
+        "results_%s.jsonl" % eval_name))
+    write_jsonl(result_file, results)
+
 
 def main(
     prompt: str = "What food do llamas eat?",
@@ -317,4 +339,4 @@ if __name__ == "__main__":
 
     torch.set_float32_matmul_precision("high")
     # CLI(main)
-    generate_humaneval_results()
+    generate_eval_results()
