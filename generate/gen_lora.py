@@ -34,13 +34,45 @@ lora_mlp = False
 lora_head = False
 
 
+def generate_code_prompt(example: dict) -> str:
+    """Generates a standardized message to prompt the model with an instruction, optional input and a
+    'response' field."""
+    # if example["input"]:
+    #     return (
+    #         "Below is an instruction that describes a task, paired with an input that provides further context. "
+    #         "Write a response that appropriately completes the request.\n\n"
+    #         f"### Instruction:\n{example['instruction']}\n\n### Input:\n{example['input']}\n\n### Response:"
+    #     )
+    # return (
+    #     "Below is a function definition and comment that describes a task. "
+    #     "Implement and complete the function so that it can successfully complete the task.\n\n"
+    #     f"### Instruction:\n{example['instruction']}\n\n### Response:"
+    # )
+    return example['instruction']
+
+
+def filter_by_stopwords(decoded_string):
+    stop_tokens = ["\nclass", "\ndef", "\n#", "\n@", "\nprint", "\nif"]
+    min_stop_index = len(decoded_string)
+    for stop_token in stop_tokens:
+        stop_index = decoded_string.find(stop_token)
+        if stop_index != -1 and stop_index < min_stop_index:
+            min_stop_index = stop_index
+    return decoded_string[:min_stop_index]
+
+
+def postprocess_generation(generation, prompt):
+    generation = generation[len(prompt):]
+    return prompt + filter_by_stopwords(generation)
+
+
 def generate_eval_results(
     lora_path: Path = Path("out/lora/alpaca_codellama7b/lit_model_lora_finetuned.pth"),
     checkpoint_dir: Path = Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
     quantize: Optional[Literal["bnb.nf4", "bnb.nf4-dq", "bnb.fp4", "bnb.fp4-dq", "bnb.int8", "gptq.int4"]] = None,
-    max_new_tokens: int = 200,
+    max_new_tokens: int = 512,
     top_k: Optional[int] = 200,
-    temperature: float = 0.8,
+    temperature: float = 0.2,
     strategy: str = "auto",
     devices: int = 1,
     precision: Optional[str] = None,
@@ -169,8 +201,9 @@ def generate_eval_results(
     for task_id, problem in problems.items():
         sample = {"instruction": problem['prompt'],
             "input": problem['base_input']}
-        prompt = generate_prompt(sample)
-        fabric.print("\n\nTask id: %s, Prompt:\n%s" % (task_id, prompt))
+        # print(problem['prompt']); exit()
+        prompt = generate_code_prompt(sample)
+        fabric.print("\n\n#### Task ID: %s, Prompt:\n%s" % (task_id, prompt))
 
         encoded = tokenizer.encode(prompt, device=fabric.device)
         prompt_length = encoded.size(0)
@@ -182,12 +215,13 @@ def generate_eval_results(
             temperature=temperature, top_k=top_k, eos_id=tokenizer.eos_id)
         t = time.perf_counter() - t0
 
-        for block in model.transformer.h:
-            block.attn.kv_cache.reset_parameters()
+        # for block in model.transformer.h:
+        #     block.attn.kv_cache.reset_parameters()
 
         output = tokenizer.decode(y)
-        output = output.split("### Response:")[1].strip()
-        fabric.print(output)
+        output = postprocess_generation(output, prompt).strip()
+        # output = output.split("### Response:")[1].strip()
+        fabric.print("#### LLM Output:\n%s" % output)
 
         tokens_generated = y.size(0) - prompt_length
         fabric.print(
