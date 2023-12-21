@@ -55,6 +55,8 @@ class Config:
     intermediate_size: Optional[int] = None
     rope_condense_ratio: int = 1
     rope_base: int = 10000
+    n_expert: int = 0
+    n_expert_per_token: int = 0
 
     def __post_init__(self):
         if not self.name:
@@ -164,12 +166,45 @@ configs = [
         n_embd=6144,
         padding_multiple=256,
     ),
+    # https://huggingface.co/stabilityai/stablelm-zephyr-3b/blob/main/config.json
+    dict(
+        name="stablelm-zephyr-3b",
+        hf_config=dict(org="stabilityai", name="stablelm-zephyr-3b"),
+        padded_vocab_size=50304,
+        n_layer=32,
+        n_head=32,
+        n_embd=2560,
+        parallel_residual=False,
+        bias=False,
+        _mlp_class="LLaMAMLP",
+        intermediate_size=6912,
+    ),
 ]
 
 ####################
 # EleutherAI Pythia
 ####################
 pythia = [
+    # https://huggingface.co/EleutherAI/pythia-14m/blob/main/config.json
+    dict(
+        name="pythia-14m",
+        hf_config=dict(org="EleutherAI", name="pythia-14m"),
+        block_size=512,
+        n_layer=6,
+        n_embd=128,
+        n_head=4,
+        padding_multiple=128,
+    ),
+    # https://huggingface.co/EleutherAI/pythia-31m/blob/main/config.json
+    dict(
+        name="pythia-31m",
+        hf_config=dict(org="EleutherAI", name="pythia-31m"),
+        block_size=1024,
+        n_layer=6,
+        n_embd=256,
+        n_head=8,
+        padding_multiple=128,
+    ),
     # https://huggingface.co/EleutherAI/pythia-70m/blob/main/config.json
     dict(
         name="pythia-70m",
@@ -248,6 +283,9 @@ pythia = [
 ]
 configs.extend(pythia)
 for c in pythia:
+    # "pythia-14m" and "pythia-31m" don't have deduped version
+    if c["name"] in ("pythia-14m", "pythia-31m"):
+        continue
     copy = deepcopy(c)
     copy["name"] = f"{c['name']}-deduped"
     copy["hf_config"]["name"] = f"{c['hf_config']['name']}-deduped"
@@ -1112,7 +1150,21 @@ phi = [
         shared_attention_norm=True,
         lm_head_bias=True,
         gelu_approximate="tanh",
-    )
+    ),
+    # https://huggingface.co/microsoft/phi-2/blob/main/config.json
+    dict(
+        name="phi-2",
+        hf_config=dict(org="microsoft", name="phi-2"),
+        vocab_size=50257,
+        padded_vocab_size=51200,
+        block_size=2048,
+        n_embd=2560,
+        n_layer=32,
+        rotary_percentage=0.4,  # 32 / (n_embd / n_head) = 32 / 80
+        shared_attention_norm=True,
+        lm_head_bias=True,
+        gelu_approximate="tanh",
+    ),
 ]
 configs.extend(phi)
 
@@ -1136,7 +1188,26 @@ mistral = [
         norm_eps=1e-05,
         _mlp_class="LLaMAMLP",
         intermediate_size=14336,
-    )
+    ),
+    # https://huggingface.co/mistralai/Mixtral-8x7B-v0.1/blob/main/config.json
+    dict(
+        name="Mixtral-8x7B-{}v0.1",
+        hf_config=dict(org="mistralai", name="Mixtral-8x7B-{}v0.1"),
+        padded_vocab_size=32000,
+        block_size=4096,  # should be 32768 but sliding window attention is not implemented
+        n_layer=32,
+        n_query_groups=8,
+        rotary_percentage=1.0,
+        parallel_residual=False,
+        bias=False,
+        _norm_class="RMSNorm",
+        norm_eps=1e-05,
+        _mlp_class="LLaMAMoE",
+        intermediate_size=14336,
+        rope_base=1000000,
+        n_expert=8,
+        n_expert_per_token=2,
+    ),
 ]
 for c in mistral:
     for kind in ("", "Instruct-"):
@@ -1151,8 +1222,8 @@ for c in mistral:
 ############
 tiny_llama = [
     dict(
-        name="tiny-llama-1.1b",
-        hf_config=dict(org="TinyLlama", name="TinyLlama-1.1B-intermediate-step-955k-token-2T"),
+        name="tiny-llama-1.1b{}",
+        hf_config=dict(org="TinyLlama", name="TinyLlama-1.1B{}"),
         block_size=2048,
         vocab_size=32000,
         padding_multiple=64,
@@ -1169,7 +1240,39 @@ tiny_llama = [
         n_query_groups=4,
     )
 ]
-configs.extend(tiny_llama)
+for c in tiny_llama:
+    for kind, hf_postfix in (("", "-intermediate-step-955k-token-2T"), ("chat", "-Chat-v0.6")):
+        copy = deepcopy(c)
+        copy["name"] = c["name"].format(kind)
+        copy["hf_config"]["name"] = c["hf_config"]["name"].format(hf_postfix)
+        configs.append(copy)
 
+
+##########################
+# Trelis Function Calling
+##########################
+llama_2_function_calling = [
+    # https://huggingface.co/Trelis/Llama-2-7b-chat-hf-function-calling-v2/blob/main/config.json
+    dict(
+        name="Llama-2-7b-chat-hf-function-calling-v2",
+        hf_config=dict(org="Trelis", name="Llama-2-7b-chat-hf-function-calling-v2"),
+        padding_multiple=64,
+        n_layer=32,
+        rotary_percentage=1.0,
+        parallel_residual=False,
+        bias=False,
+        _norm_class="RMSNorm",
+        _mlp_class="LLaMAMLP",
+        intermediate_size=11008,
+        norm_eps=1e-6,
+        block_size=4096,
+        vocab_size=32000,
+        n_head=32,
+        n_embd=4096,
+        rope_base=10000,
+    )
+]
+
+configs.extend(llama_2_function_calling)
 
 name_to_config = {config["name"]: config for config in configs}

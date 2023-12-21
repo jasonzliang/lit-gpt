@@ -28,7 +28,7 @@ You can download the data using git lfs:
 
 ```bash
 # Make sure you have git-lfs installed (https://git-lfs.com):
-git lfs install
+sudo apt install git-lfs
 ```
 
 ```bash
@@ -45,7 +45,7 @@ In order to start pretraining lit-gpt on it, you need to read, tokenize, and wri
 First, install additional dependencies for preprocessing:
 
 ```bash
-pip install lightning[data] tensorboard sentencepiece zstandard pandas pyarrow huggingface_hub
+pip install lightning[data] torchmetrics tensorboard sentencepiece zstandard pandas pyarrow huggingface_hub
 ```
 
 You will need to have the tokenizer config available:
@@ -140,3 +140,37 @@ GPU memory. For more tips to avoid out-of-memory issues, please also see the mor
 
 Last, logging is kept minimal in the script, but for long running experiments we recommend switching to a proper experiment tracker.
 As an example, we included WandB (set `use_wandb=True`) to show how you can integrate any experiment tracking framework.
+
+
+## Resume training
+
+The checkpoints saved during pretraining contain all the information to resume if needed.
+Simply rerun the script with the `--resume` argument:
+
+```bash
+python pretrain/tinyllama.py --resume out/tiny-llama-1.1b/step-00060500.pth
+```
+
+## Export checkpoints
+
+After training is completed, you can convert the checkpoint to a format that can be loaded for evaluation, inference, finetuning etc.
+
+```bash
+python scripts/convert_pretrained_checkpoint.py \
+  --checkpoint_file out/tiny-llama-1.1b/step-00060500.pth \
+  --tokenizer_dir checkpoints/meta-llama/Llama-2-7b-hf \
+  --config_name tiny-llama-1.1b \
+  --output_dir checkpoints/lit-tiny-llama-1.1b
+```
+
+After conversion, the output folder will contain these files:
+```
+checkpoints/lit-tiny-llama-1.1b
+├── lit_config.json
+├── lit_model.pth
+├── tokenizer_config.json
+├── tokenizer.json
+└── tokenizer.model
+```
+
+You can then use this checkpoint folder to run [evaluation](evaluation.md), [inference](inference.md), [finetuning](finetune_lora.md) or [process the checkpoint further](convert_lit_models.md).

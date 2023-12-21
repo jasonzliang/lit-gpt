@@ -163,5 +163,24 @@ def test_num_parameters_bitsandbytes(mode):
     assert num_parameters(model) == 110
 
     with fabric.init_module(empty_init=True):
-        model = GPT.from_name("pythia-70m")
-    assert num_parameters(model) == 70426624
+        model = GPT.from_name("pythia-14m")
+    assert num_parameters(model) == 14067712
+
+
+def test_cycle_iterator():
+    from lit_gpt.utils import CycleIterator
+
+    iterator = CycleIterator([])
+    with pytest.raises(StopIteration):
+        next(iterator)
+
+    iterator = CycleIterator(range(3))
+    assert iterator.epoch == 0
+    assert next(iterator) == 0
+    assert iterator.epoch == 0
+    assert next(iterator) == 1
+    assert iterator.epoch == 0
+    assert next(iterator) == 2
+    assert iterator.epoch == 0
+    assert next(iterator) == 0
+    assert iterator.epoch == 1
