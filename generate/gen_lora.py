@@ -238,7 +238,18 @@ def generate_eval_results(
     if not use_lora: eval_name += "_no_lora"
     result_file = Path(os.path.join(os.path.dirname(str(lora_path)),
         "results_%s.jsonl" % eval_name))
-    write_jsonl(result_file, results)
+
+    def write_to_dir():
+        results_dir = result_file.split(".")[0]
+        for result_dict in results:
+            task_id_dir = os.path.join(results_dir,
+                result_dict['task_id'].replace("/", "_"))
+            os.makedirs(task_id_dir)
+            result_file = os.path.join(task_id_dir, "0.py")
+            with open(result_file, 'w') as f:
+                f.write(result_dict['solution'])
+    write_to_dir()
+    # write_jsonl(result_file, results)
 
 
 def main(
