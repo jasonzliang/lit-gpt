@@ -386,28 +386,33 @@ if __name__ == "__main__":
     torch.set_float32_matmul_precision("high")
     # CLI(main)
     generate_eval_results(
-        checkpoint_dir=Path("checkpoints/stabilityai/stablelm-base-alpha-3b"),
+        checkpoint_dir=Path("checkpoints/stabilityai/stablelm-tuned-alpha-3b"),
         lora_path=Path("out/lora/alpaca_stablelmbase3b/lit_model_lora_finetuned.pth"),
         use_lora=False)
-    generate_eval_results(
-        checkpoint_dir=Path("checkpoints/stabilityai/stablelm-base-alpha-3b"),
-        lora_path=Path("out/lora/alpaca_stablelmbase3b/lit_model_lora_finetuned.pth"),
-        use_lora=True)
+
+    # generate_eval_results(
+    #     checkpoint_dir=Path("checkpoints/stabilityai/stablelm-base-alpha-3b"),
+    #     lora_path=Path("out/lora/alpaca_stablelmbase3b/lit_model_lora_finetuned.pth"),
+    #     use_lora=False)
+    # generate_eval_results(
+    #     checkpoint_dir=Path("checkpoints/stabilityai/stablelm-base-alpha-3b"),
+    #     lora_path=Path("out/lora/alpaca_stablelmbase3b/lit_model_lora_finetuned.pth"),
+    #     use_lora=True)
 
     # generate_eval_results(
     #     lora_path=Path("out/lora/alpaca_codellama7b/lit_model_lora_finetuned.pth"),
     #     checkpoint_dir=Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
     #     use_lora=False)
-    generate_eval_results(
-        checkpoint_dir=Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
-        lora_path=Path("out/lora/alpaca_codellama7b/lit_model_lora_finetuned.pth"),
-        use_lora=True)
+    # generate_eval_results(
+    #     checkpoint_dir=Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
+    #     lora_path=Path("out/lora/alpaca_codellama7b/lit_model_lora_finetuned.pth"),
+    #     use_lora=True)
 
-    generate_eval_results(
-        checkpoint_dir=Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
-        lora_path=Path("out/lora/codealpaca_codellama7b/lit_model_lora_finetuned.pth"),
-        use_lora=False)
-    generate_eval_results(
-        checkpoint_dir=Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
-        lora_path=Path("out/lora/codealpaca_codellama7b/lit_model_lora_finetuned.pth"),
-        use_lora=True)
+    # generate_eval_results(
+    #     checkpoint_dir=Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
+    #     lora_path=Path("out/lora/codealpaca_codellama7b/lit_model_lora_finetuned.pth"),
+    #     use_lora=False)
+    # generate_eval_results(
+    #     checkpoint_dir=Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
+    #     lora_path=Path("out/lora/codealpaca_codellama7b/lit_model_lora_finetuned.pth"),
+    #     use_lora=True)
