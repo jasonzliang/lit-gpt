@@ -229,6 +229,7 @@ def generate_eval_results(
             {tokens_generated / t:.02f} tokens/sec", file=sys.stderr)
 
         results.append({'task_id': task_id, 'solution': output})
+        # break
 
     if fabric.device.type == "cuda":
         fabric.print(f"Memory used: \
@@ -236,20 +237,20 @@ def generate_eval_results(
 
     eval_name = "humaneval" if humaneval else "mbpp"
     if not use_lora: eval_name += "_no_lora"
-    result_file = Path(os.path.join(os.path.dirname(str(lora_path)),
-        "results_%s.jsonl" % eval_name))
+    result_file = os.path.join(os.path.dirname(str(lora_path)),
+        "results_%s.jsonl" % eval_name)
+    # write_jsonl(result_file, results)
 
-    def write_to_dir():
-        results_dir = result_file.split(".")[0]
+    def write_to_dir(result_file, results):
+        results_dir = result_file.replace(".jsonl", "")
         for result_dict in results:
             task_id_dir = os.path.join(results_dir,
                 result_dict['task_id'].replace("/", "_"))
-            os.makedirs(task_id_dir)
+            os.makedirs(task_id_dir, exist_ok=True)
             result_file = os.path.join(task_id_dir, "0.py")
             with open(result_file, 'w') as f:
                 f.write(result_dict['solution'])
-    write_to_dir()
-    # write_jsonl(result_file, results)
+    write_to_dir(result_file, results)
 
 
 def main(
