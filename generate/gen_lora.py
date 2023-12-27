@@ -236,12 +236,8 @@ def generate_eval_results(
             {torch.cuda.max_memory_allocated() / 1e9:.02f} GB", file=sys.stderr)
 
     eval_name = "humaneval" if humaneval else "mbpp"
-    if not use_lora:
-        eval_name += "_no_lora"
-    else:
-        eval_name += "_lora"
     result_dir  = os.path.join(os.path.dirname(str(lora_path)),
-        "results-%s_temp-%.2f" % (eval_name, temperature))
+        "results-%s_lora-%s_temp-%.2f" % (eval_name, use_lora, temperature))
     # write_jsonl(result_file, results)
 
     def write_to_dir(result_dir, results):
@@ -339,7 +335,7 @@ def main(
             raise ValueError("Please run `python quantize/gptq.py` first")
     else:
         model_file = "lit_model.pth"
-    checkpoint_path = checkpoint_dir / model_file
+    checkpoint_path= checkpoint_dir / model_file
 
     tokenizer = Tokenizer(checkpoint_dir)
     sample = {"instruction": prompt, "input": input}
@@ -391,7 +387,7 @@ if __name__ == "__main__":
     torch.set_float32_matmul_precision("high")
     # CLI(main)
 
-    for temp in [0, 0.2, 0.4, 0.6, 0.8, 1.0]:
+    for temp in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
         generate_eval_results(
             checkpoint_dir=Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
             lora_path=Path("out/lora/alpaca_codellama7b/lit_model_lora_finetuned.pth"),
