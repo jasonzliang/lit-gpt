@@ -18,7 +18,7 @@ wd = Path(__file__).parent.parent.resolve()
 sys.path.append(str(wd))
 
 from generate.base import generate
-from lit_gpt.adapter_v2 import GPT, Block, Config, adapter_filter, mark_only_adapter_v2_as_trainable
+from lit_gpt.adapter import GPT, Block, Config, adapter_filter, mark_only_adapter_as_trainable
 from lit_gpt.tokenizer import Tokenizer
 from lit_gpt.utils import (
     check_valid_checkpoint_dir,
@@ -38,13 +38,13 @@ devices = 1
 
 # Hyperparameters
 learning_rate = 3e-3
-batch_size = 128 / devices
-micro_batch_size = 1  # set to 2 because this is fit into 12GB Vram
+batch_size = 64 // devices
+micro_batch_size = 1
 gradient_accumulation_iters = batch_size // micro_batch_size
 assert gradient_accumulation_iters > 0
 max_seq_length = None  # assign value to truncate
 epoch_size = 50000  # train dataset size
-num_epochs = 5
+num_epochs = 2
 max_iters = num_epochs * epoch_size // devices // micro_batch_size
 max_steps = num_epochs * epoch_size // devices // batch_size
 weight_decay = 0.02
@@ -54,10 +54,10 @@ hparams = {k: v for k, v in locals().items() if isinstance(v, (int, float, str))
 
 
 def setup(
-    data_dir: Path = Path("data/codealpaca_codellama7b"),
-    checkpoint_dir: Path = Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
-    # checkpoint_dir: Path = Path("checkpoints/stabilityai/stablelm-base-alpha-3b"),
-    out_dir: Path = Path("out/adapter_v2/alpaca_codellama7b"),
+    data_dir: Path = Path("data/alpaca_stablelmtuned3b"),
+    # checkpoint_dir: Path = Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
+    checkpoint_dir: Path = Path("checkpoints/stabilityai/stablelm-base-alpha-3b"),
+    out_dir: Path = Path("out/adapter/alpaca_stablelmbase3b"),
     precision: Optional[str] = "bf16-true",
     quantize: Optional[Literal["bnb.nf4", "bnb.nf4-dq", "bnb.fp4", "bnb.fp4-dq", "bnb.int8-training"]] = None,
 ) -> None:
@@ -105,13 +105,11 @@ def main(fabric: L.Fabric, data_dir: Path, checkpoint_dir: Path, out_dir: Path) 
     val_data = torch.load(data_dir / "test.pt")
 
     config = Config.from_name(name=checkpoint_dir.name)
-    torch.cuda.empty_cache()
-
     checkpoint_path = checkpoint_dir / "lit_model.pth"
     fabric.print(f"Loading model {str(checkpoint_path)!r} with {config.__dict__}")
     with fabric.init_module(empty_init=(devices > 1)):
         model = GPT(config)
-    mark_only_adapter_v2_as_trainable(model)
+    mark_only_adapter_as_trainable(model)
 
     fabric.print(f"Number of trainable parameters: {num_parameters(model, requires_grad=True):,}")
     fabric.print(f"Number of non trainable parameters: {num_parameters(model, requires_grad=False):,}")
@@ -141,7 +139,7 @@ def main(fabric: L.Fabric, data_dir: Path, checkpoint_dir: Path, out_dir: Path) 
 
     # Save the final checkpoint at the end of training
     save_path = out_dir / "lit_model_adapter_finetuned.pth"
-    save_adapter_v2_checkpoint(fabric, model, save_path)
+    save_adapter_checkpoint(fabric, model, save_path)
 
 
 def train(
@@ -185,7 +183,11 @@ def train(
         if not is_accumulating:
             optimizer.step()
             optimizer.zero_grad()
-            scheduler.step()
+            try:
+                scheduler.step()
+            except ZeroDivisionError:
+                print("ZeroDivisionError encountered, skipping lr step!")
+
             step_count += 1
 
         total_lengths += input_ids.numel()
@@ -209,7 +211,7 @@ def train(
             fabric.barrier()
         if not is_accumulating and step_count % save_interval == 0:
             checkpoint_path = out_dir / f"iter-{iter_num:06d}-ckpt.pth"
-            save_adapter_v2_checkpoint(fabric, model, checkpoint_path)
+            save_adapter_checkpoint(fabric, model, checkpoint_path)
 
 
 # the adapter "kv cache" cannot be initialized under `inference_mode`
@@ -285,6 +287,7 @@ def get_lr_scheduler(optimizer, warmup_steps: int, max_steps: int):
     return torch.optim.lr_scheduler.SequentialLR(optimizer, [scheduler1, scheduler2], milestones=[warmup_steps])
 
 
+
 def get_longest_seq_length(data: List[Dict]) -> Tuple[int, int]:
     # find out the minimum max_seq_length required during fine-tuning (saves memory!)
     lengths = [len(d["input_ids"]) for d in data]
@@ -293,8 +296,8 @@ def get_longest_seq_length(data: List[Dict]) -> Tuple[int, int]:
     return longest_seq_length, longest_seq_ix
 
 
-def save_adapter_v2_checkpoint(fabric: L.Fabric, model: torch.nn.Module, file_path: Path) -> None:
-    fabric.print(f"Saving adapter v2 weights to {str(file_path)!r}")
+def save_adapter_checkpoint(fabric: L.Fabric, model: torch.nn.Module, file_path: Path) -> None:
+    fabric.print(f"Saving adapter weights to {str(file_path)!r}")
     fabric.save(file_path, {"model": model}, filter={"model": adapter_filter})
 
 
