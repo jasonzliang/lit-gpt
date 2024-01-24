@@ -1,5 +1,5 @@
 # Copyright Lightning AI. Licensed under the Apache License 2.0, see LICENSE file.
-
+import os
 import sys
 import time
 from pathlib import Path
@@ -16,8 +16,10 @@ sys.path.append(str(wd))
 
 from generate.base import generate
 from lit_gpt import Tokenizer
-from lit_gpt.lora import GPT, Block, Config, merge_lora_weights
-from lit_gpt.utils import check_valid_checkpoint_dir, get_default_supported_precision, gptq_quantization, lazy_load
+from lit_gpt.lora import GPT, Config, merge_lora_weights
+from lit_gpt.utils import check_valid_checkpoint_dir, get_default_supported_precision, lazy_load
+from lit_gpt.adapter import GPT as adapterGPT
+from lit_gpt.adapter import Config as adapterConfig
 from scripts.prepare_alpaca import generate_prompt
 
 from evalplus.data.humaneval import get_human_eval_plus
@@ -68,17 +70,17 @@ def postprocess_generation(generation, prompt):
 
 
 def generate_eval_results(
-    lora_path: Path = Path("out/lora/alpaca_codellama7b/lit_model_lora_finetuned.pth"),
-    checkpoint_dir: Path = Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
-    quantize: Optional[Literal["bnb.nf4", "bnb.nf4-dq", "bnb.fp4", "bnb.fp4-dq", "bnb.int8", "gptq.int4"]] = None,
+    finetune_path: Path = Path("out/adapter/alpaca_stablelmbase3b/iter-064000-ckpt.pth"),
+    finetune_method: Optional[Literal["lora", "adapter"]] = "adapter",
+    checkpoint_dir: Path = Path("checkpoints/stabilityai/stablelm-base-alpha-3b"),
+    quantize: Optional[Literal["bnb.nf4", "bnb.nf4-dq", "bnb.fp4", "bnb.fp4-dq", "bnb.int8"]] = None,
     max_new_tokens: int = 512,
     top_k: Optional[int] = 200,
     temperature: float = 0.2,
     strategy: str = "auto",
     devices: int = 1,
     precision: Optional[str] = None,
-    humaneval: bool = True,
-    use_lora: bool = False
+    humaneval: bool = True
 ) -> None:
     """Generates a response based on a given instruction and an optional input.
     This script will only work with checkpoints from the instruction-tuned GPT-LoRA model.
@@ -87,13 +89,12 @@ def generate_eval_results(
     Args:
         prompt: The prompt/instruction (Alpaca style).
         input: Optional input (Alpaca style).
-        lora_path: Path to the checkpoint with trained adapter weights, which are the output of
+        finetune_path: Path to the checkpoint with trained adapter weights, which are the output of
             `finetune/lora.py`.
         checkpoint_dir: The path to the checkpoint folder with pretrained GPT weights.
         quantize: Whether to quantize the model and using which method:
             - bnb.nf4, bnb.nf4-dq, bnb.fp4, bnb.fp4-dq: 4-bit quantization from bitsandbytes
             - bnb.int8: 8-bit quantization from bitsandbytes
-            - gptq.int4: 4-bit quantization from GPTQ
             for more details, see https://github.com/Lightning-AI/lit-gpt/blob/main/tutorials/quantize.md
         max_new_tokens: The number of generation steps to take.
         top_k: The number of top most probable tokens to consider in the sampling process.
@@ -109,8 +110,8 @@ def generate_eval_results(
     if quantize is not None:
         if devices > 1:
             raise NotImplementedError(
-                "Quantization is currently not supported for multi-GPU training."
-                " Please set devices=1 when using the --quantize flag."
+                "Quantization is currently not supported for multi-GPU training. Please set devices=1 when using the"
+                " --quantize flag."
             )
         if quantize.startswith("bnb."):
             if "mixed" in precision:
@@ -129,7 +130,7 @@ def generate_eval_results(
 
     check_valid_checkpoint_dir(checkpoint_dir)
 
-    if use_lora:
+    if finetune_method == "lora":
         config = Config.from_json(
             checkpoint_dir / "lit_config.json",
             r=lora_r,
@@ -142,18 +143,15 @@ def generate_eval_results(
             to_mlp=lora_mlp,
             to_head=lora_head,
         )
+    elif finetune_method == "adapter":
+        config = adapterConfig.from_json(checkpoint_dir / "lit_config.json")
     else:
         config = Config.from_json(checkpoint_dir / "lit_config.json")
 
     if quantize is not None and devices > 1:
         raise NotImplementedError
-    if quantize == "gptq.int4":
-        model_file = "lit_model_gptq.4bit.pth"
-        if not (checkpoint_dir / model_file).is_file():
-            raise ValueError("Please run `python quantize/gptq.py` first")
-    else:
-        model_file = "lit_model.pth"
-    checkpoint_path = checkpoint_dir / model_file
+
+    checkpoint_path = checkpoint_dir / "lit_model.pth"
 
     L.seed_everything(None)
     tokenizer = Tokenizer(checkpoint_dir)
@@ -161,9 +159,11 @@ def generate_eval_results(
     fabric.print(f"Loading model \
         {str(checkpoint_path)!r} with {config.__dict__}", file=sys.stderr)
     t0 = time.perf_counter()
-    with fabric.init_module(
-        empty_init=True), gptq_quantization(quantize == "gptq.int4"):
-        model = GPT(config)
+    with fabric.init_module(empty_init=True):
+        if finetune_method != "adapter":
+            model = GPT(config)
+        else:
+            model = adapterGPT(config)
     fabric.print(f"Time to instantiate model: \
         {time.perf_counter() - t0:.02f} seconds.", file=sys.stderr)
 
@@ -176,14 +176,15 @@ def generate_eval_results(
 
     t0 = time.perf_counter()
     checkpoint = lazy_load(checkpoint_path)
-    if use_lora:
-        lora_checkpoint = lazy_load(lora_path)
-        checkpoint.update(lora_checkpoint.get("model", lora_checkpoint))
+    if finetune_method == "lora" or finetune_method == "adapter":
+        finetune_checkpoint = lazy_load(finetune_path)
+        checkpoint.update(finetune_checkpoint.get("model", finetune_checkpoint))
+
     model.load_state_dict(checkpoint)
     fabric.print(f"Time to load the model weights: \
         {time.perf_counter() - t0:.02f} seconds.", file=sys.stderr)
 
-    if use_lora:
+    if finetune_method == "lora":
         merge_lora_weights(model)
     model = fabric.setup(model)
 
@@ -237,8 +238,8 @@ def generate_eval_results(
             {torch.cuda.max_memory_allocated() / 1e9:.02f} GB", file=sys.stderr)
 
     eval_name = "humaneval" if humaneval else "mbpp"
-    result_dir  = os.path.join(os.path.dirname(str(lora_path)),
-        "results-%s_lora-%s_temp-%.2f" % (eval_name, use_lora, temperature))
+    result_dir  = os.path.join(os.path.dirname(str(finetune_path)),
+        "results-%s_finetune-%s_temp-%.2f" % (eval_name, finetune_method, temperature))
     # write_jsonl(result_file, results)
 
     def write_to_dir(result_dir, results):
@@ -366,43 +367,16 @@ if __name__ == "__main__":
     torch.set_float32_matmul_precision("high")
     # CLI(main)
 
-    for temp in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
-        generate_eval_results(
-            checkpoint_dir=Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
-            lora_path=Path("out/lora/alpaca_codellama7b/lit_model_lora_finetuned.pth"),
-            use_lora=True,
-            temperature=temp)
+    # for temp in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
+    #     generate_eval_results(
+    #         checkpoint_dir=Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
+    #         finetune_path=Path("out/lora/alpaca_codellama7b/lit_model_lora_finetuned.pth"),
+    #         use_lora=True,
+    #         temperature=temp)
 
     # generate_eval_results(
     #     checkpoint_dir=Path("checkpoints/stabilityai/stablelm-tuned-alpha-3b"),
-    #     lora_path=Path("out/lora/stablelmtuned3b/lit_model_lora_finetuned.pth"),
+    #     finetune_path=Path("out/lora/stablelmtuned3b/lit_model_lora_finetuned.pth"),
     #     use_lora=False)
 
-    # generate_eval_results(
-    #     checkpoint_dir=Path("checkpoints/stabilityai/stablelm-base-alpha-3b"),
-    #     lora_path=Path("out/lora/alpaca_stablelmbase3b/lit_model_lora_finetuned.pth"),
-    #     use_lora=False,
-    #     humaneval=False)
-    # generate_eval_results(
-    #     checkpoint_dir=Path("checkpoints/stabilityai/stablelm-base-alpha-3b"),
-    #     lora_path=Path("out/lora/alpaca_stablelmbase3b/lit_model_lora_finetuned.pth"),
-    #     use_lora=True,
-    #     humaneval=False)
-
-    # generate_eval_results(
-    #     lora_path=Path("out/lora/alpaca_codellama7b/lit_model_lora_finetuned.pth"),
-    #     checkpoint_dir=Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
-    #     use_lora=False)
-    # generate_eval_results(
-    #     checkpoint_dir=Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
-    #     lora_path=Path("out/lora/alpaca_codellama7b/lit_model_lora_finetuned.pth"),
-    #     use_lora=True)
-
-    # generate_eval_results(
-    #     checkpoint_dir=Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
-    #     lora_path=Path("out/lora/codealpaca_codellama7b/lit_model_lora_finetuned.pth"),
-    #     use_lora=False)
-    # generate_eval_results(
-    #     checkpoint_dir=Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
-    #     lora_path=Path("out/lora/codealpaca_codellama7b/lit_model_lora_finetuned.pth"),
-    #     use_lora=True)
+    generate_eval_results()
