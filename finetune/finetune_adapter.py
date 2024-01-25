@@ -44,22 +44,24 @@ gradient_accumulation_iters = batch_size // micro_batch_size
 assert gradient_accumulation_iters > 0
 max_seq_length = None  # assign value to truncate
 epoch_size = 50000  # train dataset size
-num_epochs = 2
+num_epochs = 5
 max_iters = num_epochs * epoch_size // devices // micro_batch_size
 max_steps = num_epochs * epoch_size // devices // batch_size
 weight_decay = 0.02
 warmup_steps = 2 * (epoch_size // devices // batch_size)  # 2 epochs
 
-hparams = {k: v for k, v in locals().items() if isinstance(v, (int, float, str)) and not k.startswith("_")}
+hparams = {k: v for k, v in locals().items() \
+    if isinstance(v, (int, float, str)) and not k.startswith("_")}
 
 
 def setup(
-    data_dir: Path = Path("data/alpaca_stablelmtuned3b"),
-    # checkpoint_dir: Path = Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
-    checkpoint_dir: Path = Path("checkpoints/stabilityai/stablelm-base-alpha-3b"),
-    out_dir: Path = Path("out/adapter/alpaca_stablelmbase3b"),
+    checkpoint_dir: Path = Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
+    data_dir: Path = Path("data/alpaca_codellama7b"),
+    # checkpoint_dir: Path = Path("checkpoints/stabilityai/stablelm-base-alpha-3b"),
+    # data_dir: Path = Path("data/alpaca_stablelmtuned3b"),
+    out_dir: Path = Path("out/adapter/alpaca_codellama7b"),
     precision: Optional[str] = "bf16-true",
-    quantize: Optional[Literal["bnb.nf4", "bnb.nf4-dq", "bnb.fp4", "bnb.fp4-dq", "bnb.int8-training"]] = None,
+    quantize: Optional[Literal["bnb.nf4", "bnb.nf4-dq", "bnb.fp4", "bnb.fp4-dq", "bnb.int8-training"]] = "bnb.nf4",
 ) -> None:
     precision = precision or get_default_supported_precision(training=True)
 
@@ -187,7 +189,6 @@ def train(
                 scheduler.step()
             except ZeroDivisionError:
                 print("ZeroDivisionError encountered, skipping lr step!")
-
             step_count += 1
 
         total_lengths += input_ids.numel()
