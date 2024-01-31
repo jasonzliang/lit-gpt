@@ -81,7 +81,7 @@ def generate_eval_results(
     temperature: float = 0.2,
     strategy: str = "auto",
     devices: int = 1,
-    precision: Optional[str] = None,
+    precision: Optional[str] = "bf16-true",
     humaneval: bool = True
 ) -> None:
     """Generates a response based on a given instruction and an optional input.
@@ -369,12 +369,17 @@ if __name__ == "__main__":
     torch.set_float32_matmul_precision("high")
     # CLI(main)
 
-    # for temp in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
-    #     generate_eval_results(
-    #         checkpoint_dir=Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
-    #         finetune_path=Path("out/lora/alpaca_codellama7b/lit_model_lora_finetuned.pth"),
-    #         use_lora=True,
-    #         temperature=temp)
+    for temp in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
+        generate_eval_results(
+            checkpoint_dir=Path("checkpoints/stabilityai/stable-code-3b"),
+            finetune_path=Path("out/adapter/alpaca_codealpha3b/lit_model_lora_finetuned.pth"),
+            finetune_method=None,
+            temperature=temp)
+        generate_eval_results(
+            checkpoint_dir=Path("checkpoints/stabilityai/stable-code-3b"),
+            finetune_path=Path("out/adapter/alpaca_codealpha3b/lit_model_lora_finetuned.pth"),
+            finetune_method="adapter",
+            temperature=temp)
 
     # generate_eval_results(
     #     checkpoint_dir=Path("checkpoints/stabilityai/stablelm-tuned-alpha-3b"),
