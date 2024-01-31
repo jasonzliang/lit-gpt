@@ -252,8 +252,11 @@ def generate_eval_results(
             result_file = os.path.join(task_id_dir, "0.py")
             with open(result_file, 'w') as f:
                 f.write(result_dict['solution'])
-        os.system("evalplus.evaluate --dataset %s --samples %s"
-            % (eval_name, result_dir))
+        os.system("evalplus.evaluate --dataset %s --samples %s | tee %s"
+            % (eval_name, result_dir, os.path.join(result_dir, "log.txt")))
+        # cmd = "evalplus.evaluate --dataset %s --samples %s"
+        # with open(os.path.join(result_dir, "log.txt"), "a") as log_file:
+        #     subprocess.call(cmd.split(), stdout=log_file)
 
     write_to_dir(result_dir, results)
 
