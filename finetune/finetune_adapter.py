@@ -61,7 +61,7 @@ def setup(
     # data_dir: Path = Path("data/alpaca_stablelmtuned3b"),
     out_dir: Path = Path("out/adapter/alpaca_codellama7b"),
     precision: Optional[str] = "bf16-true",
-    quantize: Optional[Literal["bnb.nf4", "bnb.nf4-dq", "bnb.fp4", "bnb.fp4-dq", "bnb.int8-training"]] = "bnb.nf4",
+    quantize: Optional[Literal["bnb.nf4", "bnb.nf4-dq", "bnb.fp4", "bnb.fp4-dq", "bnb.int8-training"]] = None,
 ) -> None:
     precision = precision or get_default_supported_precision(training=True)
 
