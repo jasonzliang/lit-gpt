@@ -181,6 +181,19 @@ configs = [
         _mlp_class="LLaMAMLP",
         intermediate_size=6912,
     ),
+    # https://huggingface.co/stabilityai/stable-code-3b/blob/main/config.json
+    dict(
+        name="stablelm-code-3b",
+        hf_config=dict(org="stabilityai", name="stablelm-code-3b"),
+        padded_vocab_size=50304,
+        n_layer=32,
+        n_head=32,
+        n_embd=2560,
+        parallel_residual=False,
+        bias=False,
+        _mlp_class="LLaMAMLP",
+        intermediate_size=6912,
+    ),
 ]
 
 ####################
