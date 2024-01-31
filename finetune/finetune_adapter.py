@@ -30,7 +30,7 @@ from lit_gpt.utils import (
 from scripts.prepare_alpaca import generate_prompt
 
 eval_interval = 600
-save_interval = 1000
+save_interval = 500
 eval_iters = 100
 eval_max_new_tokens = 100
 log_interval = 1
@@ -286,7 +286,6 @@ def get_lr_scheduler(optimizer, warmup_steps: int, max_steps: int):
     scheduler1 = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda step: step / warmup_steps)
     scheduler2 = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=(max_steps - warmup_steps))
     return torch.optim.lr_scheduler.SequentialLR(optimizer, [scheduler1, scheduler2], milestones=[warmup_steps])
-
 
 
 def get_longest_seq_length(data: List[Dict]) -> Tuple[int, int]:
