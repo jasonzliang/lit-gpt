@@ -38,13 +38,13 @@ devices = 1
 
 # Hyperparameters
 learning_rate = 3e-3
-batch_size = 128 / devices
+batch_size = 64 // devices
 micro_batch_size = 1  # set to 2 because this is fit into 12GB Vram
 gradient_accumulation_iters = batch_size // micro_batch_size
 assert gradient_accumulation_iters > 0
 max_seq_length = None  # assign value to truncate
 epoch_size = 50000  # train dataset size
-num_epochs = 5
+num_epochs = 4
 max_iters = num_epochs * epoch_size // devices // micro_batch_size
 max_steps = num_epochs * epoch_size // devices // batch_size
 weight_decay = 0.02
@@ -59,7 +59,7 @@ def setup(
     # checkpoint_dir: Path = Path("checkpoints/stabilityai/stablelm-base-alpha-3b"),
     out_dir: Path = Path("out/adapter_v2/alpaca_codellama7b"),
     precision: Optional[str] = "bf16-true",
-    quantize: Optional[Literal["bnb.nf4", "bnb.nf4-dq", "bnb.fp4", "bnb.fp4-dq", "bnb.int8-training"]] = None,
+    quantize: Optional[Literal["bnb.nf4", "bnb.nf4-dq", "bnb.fp4", "bnb.fp4-dq", "bnb.int8-training"]] = "bnb.nf4",
 ) -> None:
     precision = precision or get_default_supported_precision(training=True)
 

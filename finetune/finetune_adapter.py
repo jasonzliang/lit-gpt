@@ -44,7 +44,7 @@ gradient_accumulation_iters = batch_size // micro_batch_size
 assert gradient_accumulation_iters > 0
 max_seq_length = None  # assign value to truncate
 epoch_size = 50000  # train dataset size
-num_epochs = 5
+num_epochs = 4
 max_iters = num_epochs * epoch_size // devices // micro_batch_size
 max_steps = num_epochs * epoch_size // devices // batch_size
 weight_decay = 0.02
