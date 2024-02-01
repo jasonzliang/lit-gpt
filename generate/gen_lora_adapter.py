@@ -20,6 +20,8 @@ from lit_gpt.lora import GPT, Config, merge_lora_weights
 from lit_gpt.utils import check_valid_checkpoint_dir, get_default_supported_precision, lazy_load
 from lit_gpt.adapter import GPT as adapterGPT
 from lit_gpt.adapter import Config as adapterConfig
+from lit_gpt.adapter_v2 import GPT as adapterv2GPT
+from lit_gpt.adapter_v2 import Config as adapterv2Config
 from scripts.prepare_alpaca import generate_prompt
 
 from evalplus.data.humaneval import get_human_eval_plus
@@ -70,18 +72,18 @@ def postprocess_generation(generation, prompt):
 
 
 def generate_eval_results(
-    # finetune_path: Path = Path("out/adapter/alpaca_stablelmbase3b/iter-064000-ckpt.pth"),
-    # checkpoint_dir: Path = Path("checkpoints/stabilityai/stablelm-base-alpha-3b"),
-    finetune_path: Path = Path("out/adapter/alpaca_codellama7b/iter-064000-ckpt.pth"),
-    checkpoint_dir: Path = Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
-    finetune_method: Optional[Literal["lora", "adapter"]] = "adapter",
+    finetune_path: Path = Path("out/adapter_v2/alpaca_stablecode3b/iter-064000-ckpt.pth"),
+    checkpoint_dir: Path = Path("checkpoints/stabilityai/stable-code-3b"),
+    # finetune_path: Path = Path("out/adapter/alpaca_codellama7b/iter-064000-ckpt.pth"),
+    # checkpoint_dir: Path = Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
+    finetune_method: Optional[Literal["lora", "adapter", "adapter_v2"]] = None,
     quantize: Optional[Literal["bnb.nf4", "bnb.nf4-dq", "bnb.fp4", "bnb.fp4-dq", "bnb.int8"]] = None,
     max_new_tokens: int = 512,
     top_k: Optional[int] = 200,
     temperature: float = 0.2,
     strategy: str = "auto",
     devices: int = 1,
-    precision: Optional[str] = "bf16-true",
+    precision: Optional[str] = None,
     humaneval: bool = True
 ) -> None:
     """Generates a response based on a given instruction and an optional input.
@@ -147,6 +149,8 @@ def generate_eval_results(
         )
     elif finetune_method == "adapter":
         config = adapterConfig.from_json(checkpoint_dir / "lit_config.json")
+    elif finetune_method == "adapter_v2":
+        config = adapterv2Config.from_json(checkpoint_dir / "lit_config.json")
     else:
         config = Config.from_json(checkpoint_dir / "lit_config.json")
 
@@ -162,10 +166,12 @@ def generate_eval_results(
         {str(checkpoint_path)!r} with {config.__dict__}", file=sys.stderr)
     t0 = time.perf_counter()
     with fabric.init_module(empty_init=True):
-        if finetune_method != "adapter":
-            model = GPT(config)
-        else:
+        if finetune_method == "adapter":
             model = adapterGPT(config)
+        elif finetune_method == "adapter_v2":
+            model = adapterv2GPT(config)
+        else:
+            model = GPT(config)
     fabric.print(f"Time to instantiate model: \
         {time.perf_counter() - t0:.02f} seconds.", file=sys.stderr)
 
@@ -178,7 +184,7 @@ def generate_eval_results(
 
     t0 = time.perf_counter()
     checkpoint = lazy_load(checkpoint_path)
-    if finetune_method == "lora" or finetune_method == "adapter":
+    if finetune_method in ["lora", "adapter", "adapter_v2"]:
         finetune_checkpoint = lazy_load(finetune_path)
         checkpoint.update(finetune_checkpoint.get("model", finetune_checkpoint))
 
@@ -372,23 +378,18 @@ if __name__ == "__main__":
     torch.set_float32_matmul_precision("high")
     # CLI(main)
 
-    for temp in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
-        generate_eval_results(
-            checkpoint_dir=Path("checkpoints/stabilityai/stable-code-3b"),
-            finetune_path=Path("out/adapter/alpaca_codealpha3b/lit_model_adapter_finetuned.pth"),
-            finetune_method="adapter",
-            temperature=temp)
-    for temp in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
-        generate_eval_results(
-            checkpoint_dir=Path("checkpoints/stabilityai/stable-code-3b"),
-            finetune_path=Path("out/adapter/alpaca_codealpha3b/lit_model_adapter_finetuned.pth"),
-            finetune_method=None,
-            temperature=temp)
-        # generate_eval_results(
-        #     checkpoint_dir=Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
-        #     finetune_path=Path("out/adapter/alpaca_codellama7b/lit_model_adapter_finetuned.pth"),
-        #     finetune_method="adapter",
-        #     temperature=temp)
+    # for temp in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
+    #     generate_eval_results(
+    #         checkpoint_dir=Path("checkpoints/stabilityai/stable-code-3b"),
+    #         finetune_path=Path("out/adapter/alpaca_codealpha3b/lit_model_adapter_finetuned.pth"),
+    #         finetune_method="adapter",
+    #         temperature=temp)
+    # for temp in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
+    #     generate_eval_results(
+    #         checkpoint_dir=Path("checkpoints/stabilityai/stable-code-3b"),
+    #         finetune_path=Path("out/adapter/alpaca_codealpha3b/lit_model_adapter_finetuned.pth"),
+    #         finetune_method=None,
+    #         temperature=temp)
 
     # generate_eval_results(
     #     checkpoint_dir=Path("checkpoints/stabilityai/stablelm-tuned-alpha-3b"),

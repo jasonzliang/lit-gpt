@@ -10,7 +10,7 @@ import lightning as L
 import torch
 from lightning.fabric.loggers import CSVLogger
 from lightning.fabric.plugins import BitsandbytesPrecision
-from lightning.fabric.strategies import FSDPStrategy
+from lightning.fabric.strategies import FSDPStrategy, DeepSpeedStrategy
 from lightning.fabric.utilities import ThroughputMonitor
 
 # support running without installing as a package
@@ -53,14 +53,21 @@ warmup_steps = 2 * (epoch_size // devices // batch_size)  # 2 epochs
 hparams = {k: v for k, v in locals().items() \
     if isinstance(v, (int, float, str)) and not k.startswith("_")}
 
+ds_config = {
+    "train_micro_batch_size_per_gpu": micro_batch_size,
+    "gradient_accumulation_steps": gradient_accumulation_iters,
+    "zero_optimization": {"stage": 2},
+}
 
 def setup(
     data_dir: Path = Path("data/codealpaca_codellama7b"),
     checkpoint_dir: Path = Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
-    # checkpoint_dir: Path = Path("checkpoints/stabilityai/stablelm-base-alpha-3b"),
     out_dir: Path = Path("out/adapter_v2/alpaca_codellama7b"),
+    # data_dir: Path = Path("data/alpaca_stablecode3b"),
+    # checkpoint_dir: Path = Path("checkpoints/stabilityai/stable-code-3b"),
+    # out_dir: Path = Path("out/adapter_v2/alpaca_stablecode3b"),
     precision: Optional[str] = "bf16-true",
-    quantize: Optional[Literal["bnb.nf4", "bnb.nf4-dq", "bnb.fp4", "bnb.fp4-dq", "bnb.int8-training"]] = "bnb.nf4",
+    quantize: Optional[Literal["bnb.nf4", "bnb.nf4-dq", "bnb.fp4", "bnb.fp4-dq", "bnb.int8-training"]] = None,
 ) -> None:
     precision = precision or get_default_supported_precision(training=True)
 
@@ -86,6 +93,7 @@ def setup(
             cpu_offload=False,
         )
     else:
+        # strategy = DeepSpeedStrategy(config=ds_config)
         strategy = "auto"
 
     logger = CSVLogger(out_dir.parent, out_dir.name, flush_logs_every_n_steps=log_interval)
