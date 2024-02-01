@@ -373,16 +373,22 @@ if __name__ == "__main__":
     # CLI(main)
 
     for temp in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
-        # generate_eval_results(
-        #     checkpoint_dir=Path("checkpoints/stabilityai/stable-code-3b"),
-        #     finetune_path=Path("out/adapter/alpaca_codealpha3b/lit_model_adapter_finetuned.pth"),
-        #     finetune_method=None,
-        #     temperature=temp)
         generate_eval_results(
-            checkpoint_dir=Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
-            finetune_path=Path("out/adapter/alpaca_codellama7b/lit_model_adapter_finetuned.pth"),
+            checkpoint_dir=Path("checkpoints/stabilityai/stable-code-3b"),
+            finetune_path=Path("out/adapter/alpaca_codealpha3b/lit_model_adapter_finetuned.pth"),
             finetune_method="adapter",
             temperature=temp)
+    for temp in [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]:
+        generate_eval_results(
+            checkpoint_dir=Path("checkpoints/stabilityai/stable-code-3b"),
+            finetune_path=Path("out/adapter/alpaca_codealpha3b/lit_model_adapter_finetuned.pth"),
+            finetune_method=None,
+            temperature=temp)
+        # generate_eval_results(
+        #     checkpoint_dir=Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
+        #     finetune_path=Path("out/adapter/alpaca_codellama7b/lit_model_adapter_finetuned.pth"),
+        #     finetune_method="adapter",
+        #     temperature=temp)
 
     # generate_eval_results(
     #     checkpoint_dir=Path("checkpoints/stabilityai/stablelm-tuned-alpha-3b"),
