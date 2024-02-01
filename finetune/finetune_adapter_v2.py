@@ -30,7 +30,7 @@ from lit_gpt.utils import (
 from scripts.prepare_alpaca import generate_prompt
 
 eval_interval = 600
-save_interval = 1000
+save_interval = 500
 eval_iters = 100
 eval_max_new_tokens = 100
 log_interval = 1
@@ -44,13 +44,14 @@ gradient_accumulation_iters = batch_size // micro_batch_size
 assert gradient_accumulation_iters > 0
 max_seq_length = None  # assign value to truncate
 epoch_size = 50000  # train dataset size
-num_epochs = 4
+num_epochs = 5
 max_iters = num_epochs * epoch_size // devices // micro_batch_size
 max_steps = num_epochs * epoch_size // devices // batch_size
 weight_decay = 0.02
 warmup_steps = 2 * (epoch_size // devices // batch_size)  # 2 epochs
 
-hparams = {k: v for k, v in locals().items() if isinstance(v, (int, float, str)) and not k.startswith("_")}
+hparams = {k: v for k, v in locals().items() \
+    if isinstance(v, (int, float, str)) and not k.startswith("_")}
 
 
 def setup(
@@ -105,6 +106,7 @@ def main(fabric: L.Fabric, data_dir: Path, checkpoint_dir: Path, out_dir: Path) 
     val_data = torch.load(data_dir / "test.pt")
 
     config = Config.from_name(name=checkpoint_dir.name)
+    # config.adapter_prompt_length = 8; print(config)
     torch.cuda.empty_cache()
 
     checkpoint_path = checkpoint_dir / "lit_model.pth"
@@ -121,9 +123,10 @@ def main(fabric: L.Fabric, data_dir: Path, checkpoint_dir: Path, out_dir: Path) 
     trainable_params = [p for p in model.parameters() if p.requires_grad]
     if isinstance(fabric.strategy.precision, BitsandbytesPrecision):
         import bitsandbytes as bnb
-
+        print("Using BnB Paged AdamW")
         optimizer = bnb.optim.PagedAdamW(trainable_params, lr=learning_rate, weight_decay=weight_decay)
     else:
+        print("Using Normal AdamW")
         optimizer = torch.optim.AdamW(trainable_params, lr=learning_rate, weight_decay=weight_decay)
     optimizer = fabric.setup_optimizers(optimizer)
     scheduler = get_lr_scheduler(optimizer, warmup_steps=warmup_steps, max_steps=max_steps)
@@ -185,7 +188,10 @@ def train(
         if not is_accumulating:
             optimizer.step()
             optimizer.zero_grad()
-            scheduler.step()
+            try:
+                scheduler.step()
+            except ZeroDivisionError:
+                print("ZeroDivisionError encountered, skipping lr step!")
             step_count += 1
 
         total_lengths += input_ids.numel()

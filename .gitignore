@@ -5,6 +5,8 @@ __pycache__
 build
 .venv
 .vscode
+.tags
+.tags_*
 
 # data
 data
