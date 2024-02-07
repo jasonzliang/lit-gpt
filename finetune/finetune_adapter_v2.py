@@ -39,12 +39,12 @@ devices = 1
 # Hyperparameters
 learning_rate = 3e-3
 batch_size = 64 // devices
-micro_batch_size = 1  # set to 2 because this is fit into 12GB Vram
+micro_batch_size = 2  # set to 2 because this is fit into 12GB Vram
 gradient_accumulation_iters = batch_size // micro_batch_size
 assert gradient_accumulation_iters > 0
 max_seq_length = None  # assign value to truncate
 epoch_size = 50000  # train dataset size
-num_epochs = 5
+num_epochs = 10
 max_iters = num_epochs * epoch_size // devices // micro_batch_size
 max_steps = num_epochs * epoch_size // devices // batch_size
 weight_decay = 0.02
@@ -60,12 +60,12 @@ ds_config = {
 }
 
 def setup(
-    data_dir: Path = Path("data/codealpaca_codellama7b"),
-    checkpoint_dir: Path = Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
-    out_dir: Path = Path("out/adapter_v2/alpaca_codellama7b"),
-    # data_dir: Path = Path("data/alpaca_stablecode3b"),
-    # checkpoint_dir: Path = Path("checkpoints/stabilityai/stable-code-3b"),
-    # out_dir: Path = Path("out/adapter_v2/alpaca_stablecode3b"),
+    # data_dir: Path = Path("data/codealpaca_codellama7b"),
+    # checkpoint_dir: Path = Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
+    # out_dir: Path = Path("out/adapter_v2/alpaca_codellama7b"),
+    data_dir: Path = Path("data/alpaca_stablecode3b"),
+    checkpoint_dir: Path = Path("checkpoints/stabilityai/stable-code-3b"),
+    out_dir: Path = Path("out/adapter_v2/alpaca_stablecode3b"),
     precision: Optional[str] = "bf16-true",
     quantize: Optional[Literal["bnb.nf4", "bnb.nf4-dq", "bnb.fp4", "bnb.fp4-dq", "bnb.int8-training"]] = None,
 ) -> None:
