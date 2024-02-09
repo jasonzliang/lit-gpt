@@ -72,7 +72,7 @@ def postprocess_generation(generation, prompt):
 
 
 def generate_eval_results(
-    finetune_path: Path = Path("out/adapter_v2/alpaca_stablecode3b/iter-064000-ckpt.pth"),
+    finetune_path: Path = Path("out/adapter_v2/alpaca_stablecode3b/lit_model_adapter_finetuned.pth"),
     checkpoint_dir: Path = Path("checkpoints/stabilityai/stable-code-3b"),
     # finetune_path: Path = Path("out/adapter/alpaca_codellama7b/iter-064000-ckpt.pth"),
     # checkpoint_dir: Path = Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
