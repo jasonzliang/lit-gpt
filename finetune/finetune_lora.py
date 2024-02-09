@@ -44,7 +44,8 @@ micro_batch_size = 1
 gradient_accumulation_iters = batch_size // micro_batch_size
 assert gradient_accumulation_iters > 0
 max_seq_length = None  # assign value to truncate
-max_iters = 50000  # train dataset size
+num_epochs = 10
+max_iters = 50000 * num_epochs # train dataset size
 max_steps = max_iters // gradient_accumulation_iters
 weight_decay = 0.01
 lora_r = 8
@@ -62,9 +63,9 @@ hparams = {k: v for k, v in locals().items() if isinstance(v, (int, float, str))
 
 
 def setup(
-    data_dir: Path = Path("data/codealpaca_codellama7b"),
-    checkpoint_dir: Path = Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
-    out_dir: Path = Path("out/lora/codealpaca_codellama7b"),
+    data_dir: Path = Path("data/alpaca_stablecode3b"),
+    checkpoint_dir: Path = Path("checkpoints/stabilityai/stable-code-3b"),
+    out_dir: Path = Path("out/lora/alpaca_stablecode3b"),
     precision: Optional[str] = "bf16-true",
     quantize: Optional[Literal["bnb.nf4", "bnb.nf4-dq", "bnb.fp4", "bnb.fp4-dq", "bnb.int8-training"]] = None,
 ) -> None:
