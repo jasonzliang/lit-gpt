@@ -40,7 +40,7 @@ devices = 1
 # Hyperparameters
 learning_rate = 3e-4
 batch_size = 128
-micro_batch_size = 1
+micro_batch_size = 2
 gradient_accumulation_iters = batch_size // micro_batch_size
 assert gradient_accumulation_iters > 0
 max_seq_length = None  # assign value to truncate
