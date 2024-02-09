@@ -76,7 +76,7 @@ def generate_eval_results(
     checkpoint_dir: Path = Path("checkpoints/stabilityai/stable-code-3b"),
     # finetune_path: Path = Path("out/adapter/alpaca_codellama7b/iter-064000-ckpt.pth"),
     # checkpoint_dir: Path = Path("checkpoints/codellama/CodeLlama-7b-Python-hf"),
-    finetune_method: Optional[Literal["lora", "adapter", "adapter_v2"]] = None,
+    finetune_method: Optional[Literal["lora", "adapter", "adapter_v2"]] = "adapter_v2",
     quantize: Optional[Literal["bnb.nf4", "bnb.nf4-dq", "bnb.fp4", "bnb.fp4-dq", "bnb.int8"]] = None,
     max_new_tokens: int = 512,
     top_k: Optional[int] = 200,
