@@ -1,5 +1,7 @@
 # Copyright Lightning AI. Licensed under the Apache License 2.0, see LICENSE file.
+import json
 import os
+import pprint
 import sys
 import time
 from pathlib import Path
@@ -260,12 +262,15 @@ def generate_eval_results(
             with open(result_file, 'w') as f:
                 f.write(result_dict['solution'])
         os.system("evalplus.evaluate --dataset %s --samples %s | tee %s"
-            % (eval_name, result_dir, os.path.join(result_dir, "log.txt")))
+            % (eval_name, result_dir, os.path.join(result_dir, "evalplus.txt")))
+
         # cmd = "evalplus.evaluate --dataset %s --samples %s"
         # with open(os.path.join(result_dir, "log.txt"), "a") as log_file:
         #     subprocess.call(cmd.split(), stdout=log_file)
 
     write_to_dir(result_dir, results)
+    with open(os.path.join(result_dir, "config.txt"), 'w') as f:
+        f.write(pprint.pprint(locals(), compact=True))
 
 
 def main(
