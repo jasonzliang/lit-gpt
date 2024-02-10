@@ -44,7 +44,7 @@ micro_batch_size = 2
 gradient_accumulation_iters = batch_size // micro_batch_size
 assert gradient_accumulation_iters > 0
 max_seq_length = None  # assign value to truncate
-num_epochs = 5
+num_epochs = 1
 max_iters = 50000 * num_epochs # train dataset size
 max_steps = max_iters // gradient_accumulation_iters
 weight_decay = 0.01
@@ -65,7 +65,7 @@ hparams = {k: v for k, v in locals().items() if isinstance(v, (int, float, str))
 def setup(
     data_dir: Path = Path("data/alpaca_stablecode3b"),
     checkpoint_dir: Path = Path("checkpoints/stabilityai/stable-code-3b"),
-    out_dir: Path = Path("out/lora/alpaca_stablecode3b"),
+    out_dir: Path = Path("out/lora/alpaca_stablecode3b_1epoch"),
     precision: Optional[str] = "bf16-true",
     quantize: Optional[Literal["bnb.nf4", "bnb.nf4-dq", "bnb.fp4", "bnb.fp4-dq", "bnb.int8-training"]] = None,
 ) -> None:

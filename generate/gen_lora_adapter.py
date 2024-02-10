@@ -247,7 +247,8 @@ def generate_eval_results(
 
     eval_name = "humaneval" if humaneval else "mbpp"
     result_dir  = os.path.join(os.path.dirname(str(finetune_path)),
-        "results-%s_finetune-%s_temp-%.2f" % (eval_name, finetune_method, temperature))
+        "results-%s_finetune-%s_temp-%.2f_%s" % \
+            (eval_name, finetune_method, temperature, int(time.time())))
     # write_jsonl(result_file, results)
 
     def write_to_dir(result_dir, results):
