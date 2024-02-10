@@ -396,4 +396,4 @@ if __name__ == "__main__":
     #     finetune_path=Path("out/lora/stablelmtuned3b/lit_model_lora_finetuned.pth"),
     #     use_lora=False)
 
-    CLI(generate_eval_results())
+    CLI(generate_eval_results)
