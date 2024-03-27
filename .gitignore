@@ -3,6 +3,7 @@ __pycache__
 .DS_Store
 *.egg-info
 build
+dist
 .venv
 .vscode
 .tags
@@ -11,6 +12,8 @@ build
 # data
 data
 datasets
+!litgpt/data
+!tests/data
 checkpoints
 out
 wandb
